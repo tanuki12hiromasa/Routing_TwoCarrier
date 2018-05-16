@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace dijksta
+namespace TwoTrack
 {
     class salesman
     {
@@ -12,7 +12,7 @@ namespace dijksta
         static void Main(string[] args)
         {
             Console.WriteLine(System.IO.Directory.GetCurrentDirectory());
-            var pf = new SAalgo(width, hight);
+            var pf = new PathFinder(width, hight);
             pf.ex(mapfile, destfile);
         }
 

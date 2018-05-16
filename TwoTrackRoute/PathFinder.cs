@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 
-namespace dijksta
+namespace TwoTrack //二台のトラックでの最短時間を求める
 {
     public class Destination
         {
@@ -21,7 +21,8 @@ namespace dijksta
         int nCross; //交差点の数 width*height 
         int[,] map; //グラフ（地図）データ
         Destination[] dest; //配達地点　並びはcsvの順
-        List<int> path; //配達順
+        List<int> path1; //配達順.一人目
+        List<int> path2; //二人目
         int startpoint; //開始点/終着点
         int[] isDest; //その場所がDestかどうか(Destならその番号、違うなら-1)
         protected string outfile = "betterpath.txt";
@@ -40,7 +41,7 @@ namespace dijksta
             ReadMap(mapfile);
             ReadDest(destsfile);
             findRoute();
-            makePath(dest, startpoint, out path);
+            makePath(dest, startpoint, out path1,out path2);
             WritePath();
             return 0;
         }
@@ -91,58 +92,26 @@ namespace dijksta
             WriteRoute();
         }
 
-        virtual protected void makePath(Destination[] dest,int startpoint,out List<int> path)
+        virtual protected void makePath(Destination[] dest,int startpoint,out List<int> path1,out List<int> path2)
         {
+            var p1 = new List<int>();
+            var p2 = new List<int>();
 
-            path = new List<int>();
-            var yetList = new List<int>();
-            for (int i = 0; i < dest.Length; i++) if (i != startpoint) yetList.Add(i);
-            path.Add(startpoint);
-            path.Add(startpoint);
-            var farDest = searchShortPath(startpoint, startpoint, -1);
-            path.Insert(1, farDest);
-            yetList.Remove(farDest);
-            while (yetList.Count > 0)
-            {
-                int minCost = int.MaxValue;
-                int minDest = startpoint;
-                int minPlace = 0;
-                for (int i = 0; i < path.Count - 1; i++)
-                {
-                    var sDest = searchShortPath(path[i], path[i + 1]);
-                    if (deltaAddCost(path[i], sDest, path[i + 1]) < minCost)
-                    {
-                        minCost = deltaAddCost(path[i], sDest, path[i + 1]);
-                        minDest = sDest;
-                        minPlace = i + 1;
-                    }
-                }
-                path.Insert(minPlace, minDest);
-                yetList.Remove(minDest);
-                Console.WriteLine("add:" + dest[minDest].name);
-            }
 
-            int deltaAddCost(int prev, int addDest, int next) => (dest[prev].cost[addDest] + dest[addDest].cost[next]) - dest[prev].cost[next];
 
-            int searchShortPath(int prev, int next, int inv = 1)
-            {
-                int minCost = int.MaxValue;
-                int mDest = startpoint;
-                foreach (int i in yetList)
-                {
-                    var addCost = (dest[prev].cost[i] + dest[next].cost[i]) * inv;
-                    if (addCost < minCost ||
-                        (addCost == minCost && dest[startpoint].cost[i] > dest[startpoint].cost[mDest]))
-                    {
-                        minCost = addCost;
-                        mDest = i;
-                    }
-                }
-                return mDest;
-            }
+
+
+            path1 = p1; path2 = p2;
         }
 
-        
+        int SumCost(List<int> path)
+        {
+            int sum = 0;
+            for (int i = 0; i < path.Count - 1; i++) sum += dest[path[i]].cost[path[i + 1]];
+            return sum;
+        }
+
+
 
         void ReadMap(string file)
         {
@@ -221,14 +190,27 @@ namespace dijksta
         {
             try
             {
+                var p1cost = SumCost(path1); var p2cost = SumCost(path2);
                 using(var stw = new System.IO.StreamWriter(outfile))
                 {
-                    for(int i = 0; i < path.Count-1; i++)
+
+                    stw.WriteLine("<１台目> time:" + p1cost / 6 + "h" + p1cost % 6 * 10 + "m");
+                    for(int i = 0; i < path1.Count-1; i++)
                     {
-                        stw.Write(dest[path[i]].name+": ");
-                        for (int j = 0; j < dest[path[i]].route[path[i+1]].Count; j++) stw.Write(dest[path[i]].route[path[i+1]][j]+" ");
+                        stw.Write(dest[path1[i]].name+": ");
+                        for (int j = 0; j < dest[path1[i]].route[path1[i+1]].Count; j++) stw.Write(dest[path1[i]].route[path1[i+1]][j]+" ");
                         stw.WriteLine();
                     }
+                    stw.WriteLine(dest[path1[path1.Count - 1]].name);
+                    stw.WriteLine("<２台目> time:" + p2cost / 6 + "h" + p2cost % 6 * 10 + "m");
+                    for (int i = 0; i < path2.Count - 1; i++)
+                    {
+                        stw.Write(dest[path2[i]].name + ": ");
+                        for (int j = 0; j < dest[path2[i]].route[path2[i + 1]].Count; j++) stw.Write(dest[path2[i]].route[path2[i + 1]][j] + " ");
+                        stw.WriteLine();
+                    }
+                    stw.WriteLine(dest[path2[path2.Count - 1]].name);
+                    stw.WriteLine("所要時間:" + Math.Max(p1cost, p2cost));
                 }
             }
             catch(System.Exception e)
